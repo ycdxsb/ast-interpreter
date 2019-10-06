@@ -43,6 +43,9 @@ public:
 	   return mPC;
    }
 
+   void pushStmtVal(Stmt *stmt,int value) {
+	   mExprs.insert(pair<Stmt* , int> (stmt,value));
+   }
    
 };
 
@@ -120,14 +123,39 @@ public:
 	   }
    }
 
-   int64_t expr(Expr *expr){
-	    expr = expr->IgnoreImpCasts();
-	   	if(auto IntLiteral = dyn_cast<IntegerLiteral>(expr)){ //a = 12
+   void unary(UnaryOperator* unaryExpr){
+	   // Clang/AST/Expr.h/ line 1714
+	   auto op = unaryExpr->getOpcode();
+	   auto exp = unaryExpr->getSubExpr();
+	   switch (op)
+	   {
+	   case UO_Minus: //'-'
+	        cout<<"I am in minus"<<endl;
+            mStack.back().pushStmtVal(unaryExpr,-1 * expr(exp));
+		   	break;
+	   case UO_Plus: //'+'
+			mStack.back().pushStmtVal(unaryExpr,expr(exp));
+	        break;
+	   default:
+		   break;
+	   }
+   }
+    
+
+   int expr(Expr *exp){
+	    exp = exp->IgnoreImpCasts();
+	   	if(auto IntLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
 			llvm::APInt result = IntLiteral->getValue();
+			cout<<"result:"<<result.getSExtValue()<<endl;
 			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
 			return result.getSExtValue();
-		}else if(auto CharLiteral = dyn_cast<CharacterLiteral>(expr)){ // a = 'a'
+		}else if(auto CharLiteral = dyn_cast<CharacterLiteral>(exp)){ // a = 'a'
 		    return CharLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
+		}else if(auto unaryExpr = dyn_cast<UnaryOperator>(exp)){ // a = -13 and a = +12;
+		    unary(unaryExpr);
+			cout << "I am in unaryExpr"<<endl;
+			int result = mStack.back().getStmtVal(unaryExpr);
+			return result;
 		}
 		return 0;
    }
