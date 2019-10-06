@@ -105,7 +105,6 @@ public:
 			   it != ie; ++ it) {
 		   Decl * decl = *it;
 		   if (VarDecl * vardecl = dyn_cast<VarDecl>(decl)) {
-			   mStack.back().bindDecl(vardecl, 0);
 			    // not array
 				
 				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
@@ -127,7 +126,10 @@ public:
 			llvm::APInt result = IntLiteral->getValue();
 			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
 			return result.getSExtValue();
+		}else if(auto CharLiteral = dyn_cast<CharacterLiteral>(expr)){ // a = 'a'
+		    return CharLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
 		}
+		return 0;
    }
 
    void declref(DeclRefExpr * declref) {

@@ -21,29 +21,29 @@ public:
 
    virtual void VisitBinaryOperator (BinaryOperator * bop) {
       count++;
-      printf("I am in Binary Operator,count:%d\n",count);
+      //printf("I am in Binary Operator,count:%d\n",count);
 	   VisitStmt(bop);
 	   mEnv->binop(bop);
    }
    virtual void VisitDeclRefExpr(DeclRefExpr * expr) {
       count++;
-      printf("I am in DeclRefExpr,count:%d\n",count);
+      // printf("I am in DeclRefExpr,count:%d\n",count);
 	   VisitStmt(expr);
 	   mEnv->declref(expr);
    }
    virtual void VisitCastExpr(CastExpr * expr) {
-      printf("I am in CastExpr,count:%d\n",count);
+      // printf("I am in CastExpr,count:%d\n",count);
 	   VisitStmt(expr);
 	   mEnv->cast(expr);
    }
    virtual void VisitCallExpr(CallExpr * call) {
       count++;
-      printf("I am in CallExpr,count:%d\n",count);
+      // printf("I am in CallExpr,count:%d\n",count);
 	   VisitStmt(call);
 	   mEnv->call(call);
    }
    virtual void VisitDeclStmt(DeclStmt * declstmt) {
-      printf("I am in DeclStmt,count:%d\n",count);
+      // printf("I am in DeclStmt,count:%d\n",count);
       VisitStmt(declstmt);
 	   mEnv->decl(declstmt);
    }
