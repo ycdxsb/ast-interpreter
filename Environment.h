@@ -42,6 +42,8 @@ public:
    Stmt * getPC() {
 	   return mPC;
    }
+
+   
 };
 
 /// Heap maps address to a value
@@ -108,9 +110,9 @@ public:
 				
 				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
 			        if(vardecl->hasInit())
-			            mStack.back().bindDecl(vardecl, 1);
+			            mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));//expr(vardecl->getInit()))
 				    else
-					    mStack.back().bindDecl(vardecl, 0);//expr(vardecl->getInit()))
+					    mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
 					
 				}  
@@ -119,8 +121,13 @@ public:
 	   }
    }
 
-   void expr(Expr *expr){
-
+   int64_t expr(Expr *expr){
+	    expr = expr->IgnoreImpCasts();
+	   	if(auto IntLiteral = dyn_cast<IntegerLiteral>(expr)){ //a = 12
+			llvm::APInt result = IntLiteral->getValue();
+			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
+			return result.getSExtValue();
+		}
    }
 
    void declref(DeclRefExpr * declref) {
