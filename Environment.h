@@ -137,6 +137,8 @@ public:
 	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)==expr(exprRight));
 	           break;
 	       default:
+		       cout << "process binaryOp error"<< endl;
+			   exit(0);
 		       break;
 		   }
 	   }
@@ -147,11 +149,9 @@ public:
 			   it != ie; ++ it) {
 		   Decl * decl = *it;
 		   if (VarDecl * vardecl = dyn_cast<VarDecl>(decl)) {
-			    // not array
-				
 				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
 			        if(vardecl->hasInit())
-			            mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));//expr(vardecl->getInit()))
+			            mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));
 				    else
 					    mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
@@ -175,6 +175,8 @@ public:
 			mStack.back().pushStmtVal(unaryExpr,expr(exp));
 	        break;
 	   default:
+	       cout<< "process unaryOp error"<<endl;
+		   exit(0);
 		   break;
 	   }
    }
@@ -187,12 +189,12 @@ public:
 			int result = mStack.back().getStmtVal(decl);
 			return result;
 		}
-	   	else if(auto IntLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
-			llvm::APInt result = IntLiteral->getValue();
+	   	else if(auto intLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
+			llvm::APInt result = intLiteral->getValue();
 			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
 			return result.getSExtValue();
-		}else if(auto CharLiteral = dyn_cast<CharacterLiteral>(exp)){ // a = 'a'
-		    return CharLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
+		}else if(auto charLiteral = dyn_cast<CharacterLiteral>(exp)){ // a = 'a'
+		    return charLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
 		}else if(auto unaryExpr = dyn_cast<UnaryOperator>(exp)){ // a = -13 and a = +12;
 		    unaryop(unaryExpr);
 			int result = mStack.back().getStmtVal(unaryExpr);
@@ -201,6 +203,8 @@ public:
 			binop(binaryExpr);
 			int result = mStack.back().getStmtVal(binaryExpr);
 			return result;
+		}else if(auto parenExpr = dyn_cast<ParenExpr>(exp)){ // (E)
+			return expr(parenExpr->getSubExpr());
 		}
 		cout << "have not handle this situation"<< endl;
 		return 0;
@@ -210,7 +214,6 @@ public:
 	   mStack.back().setPC(declref);
 	   if (declref->getType()->isIntegerType()) {
 		   Decl* decl = declref->getFoundDecl();
-
 		   int val = mStack.back().getDeclVal(decl);
 		   mStack.back().bindStmt(declref, val);
 	   }
@@ -231,15 +234,13 @@ public:
 	   int val = 0;
 	   FunctionDecl * callee = callexpr->getDirectCallee();
 	   if (callee == mInput) {
-		  llvm::errs() << "Please Input an Integer Value : ";
-		  cout << endl;
-		  scanf("%d", &val);
+		  cout << "Please Input an Integer Value : " << endl;
+		  cin >> val;
 		  mStack.back().bindStmt(callexpr, val);
-	   } else if (callee == mOutput) {
+	   } else if (callee == mOutput) { // todo when val is char , cout char type value
 		   Expr * decl = callexpr->getArg(0);
 		   val = mStack.back().getStmtVal(decl);
-		   llvm::errs() << val ;
-		   cout << endl;
+		   cout << val << endl; 
 	   } else if(callee == mMalloc){
 		   
 	   } else if(callee == mFree){

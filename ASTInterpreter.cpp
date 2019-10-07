@@ -14,39 +14,47 @@ using namespace clang;
 class InterpreterVisitor : 
    public EvaluatedExprVisitor<InterpreterVisitor> {
 public:
-   int count = 0;
    explicit InterpreterVisitor(const ASTContext &context, Environment * env)
    : EvaluatedExprVisitor(context), mEnv(env) {}
    virtual ~InterpreterVisitor() {}
 
    virtual void VisitBinaryOperator (BinaryOperator * bop) {
-      count++;
-      //printf("I am in Binary Operator,count:%d\n",count);
-	   VisitStmt(bop);
+      VisitStmt(bop);
 	   mEnv->binop(bop);
    }
    virtual void VisitDeclRefExpr(DeclRefExpr * expr) {
-      count++;
-      // printf("I am in DeclRefExpr,count:%d\n",count);
-	   VisitStmt(expr);
+      VisitStmt(expr);
 	   mEnv->declref(expr);
    }
    virtual void VisitCastExpr(CastExpr * expr) {
-      // printf("I am in CastExpr,count:%d\n",count);
-	   VisitStmt(expr);
+      VisitStmt(expr);
 	   mEnv->cast(expr);
    }
    virtual void VisitCallExpr(CallExpr * call) {
-      count++;
-      // printf("I am in CallExpr,count:%d\n",count);
-	   VisitStmt(call);
+      VisitStmt(call);
 	   mEnv->call(call);
    }
+
    virtual void VisitDeclStmt(DeclStmt * declstmt) {
-      // printf("I am in DeclStmt,count:%d\n",count);
       VisitStmt(declstmt);
 	   mEnv->decl(declstmt);
    }
+
+   virtual void VisitIfStmt(IfStmt* ifstmt){
+      // clang/AST/stmt.h/ line 905
+      // todo add StackFrame for then and else block
+      Expr* cond = ifstmt->getCond();
+      if(mEnv->expr(cond)){ // True
+         Stmt* thenstmt = ifstmt->getThen();
+         VisitStmt(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
+      }else{
+         if(ifstmt->getElse()){
+            Stmt* elsestmt = ifstmt->getElse();
+            VisitStmt(elsestmt);
+         }
+      }
+   }
+
 private:
    Environment * mEnv;
 };
