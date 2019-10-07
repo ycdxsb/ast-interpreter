@@ -47,6 +47,9 @@ public:
 	   mExprs.insert(pair<Stmt* , int> (stmt,value));
    }
    
+   bool hasDeclared(Stmt *stmt){
+	   return mExprs.find(stmt)!=mExprs.end();
+   }
 };
 
 /// Heap maps address to a value
@@ -89,16 +92,52 @@ public:
    }
 
    /// !TODO Support comparison operation
-   void binop(BinaryOperator *bop) {
-	   Expr * left = bop->getLHS();
-	   Expr * right = bop->getRHS();
-
-	   if (bop->isAssignmentOp()) {
-		   int val = mStack.back().getStmtVal(right);
-		   mStack.back().bindStmt(left, val);
-		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(left)) {
+   void binop(BinaryOperator *binaryExpr) {
+	   Expr * exprLeft = binaryExpr->getLHS();
+	   Expr * exprRight = binaryExpr->getRHS();
+	   if (binaryExpr->isAssignmentOp()) {
+		   expr(exprRight);
+		   int val = mStack.back().getStmtVal(exprRight);
+		   mStack.back().bindStmt(exprLeft, val);
+		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(exprLeft)) {
 			   Decl * decl = declexpr->getFoundDecl();
 			   mStack.back().bindDecl(decl, val);
+		   }
+	   }else{
+		   auto op = binaryExpr->getOpcode();
+		   int left;
+		   int right;
+		   switch (op){
+	   	   case BO_Add: // +
+	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)+expr(exprRight));
+		       break;
+	   	   case BO_Sub: // -
+	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)-expr(exprRight));
+	          break;
+	       case BO_Mul: // *
+	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)*expr(exprRight));
+	           break;
+	       case BO_Div: // - , a/b,check the b can not be 0;
+	           right = expr(exprRight);
+			   if(right==0)
+			       cout << "the binaryOp / ,can not div 0 "<< endl;
+				   exit(0);
+			   left = expr(exprLeft); // float?
+			   if(left%right!=0)
+			       cout << "there are loss when div" << endl;
+			   mStack.back().pushStmtVal(binaryExpr,int(left/right)); 
+	           break;
+	       case BO_LT: // <
+	   		   mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)<expr(exprRight));
+	           break;
+	       case BO_GT: // >
+	    	   mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)>expr(exprRight));
+	           break;
+	       case BO_EQ: // ==
+	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)==expr(exprRight));
+	           break;
+	       default:
+		       break;
 		   }
 	   }
    }
@@ -123,15 +162,14 @@ public:
 	   }
    }
 
-   void unary(UnaryOperator* unaryExpr){
+   void unaryop(UnaryOperator* unaryExpr){ // - +
 	   // Clang/AST/Expr.h/ line 1714
 	   auto op = unaryExpr->getOpcode();
 	   auto exp = unaryExpr->getSubExpr();
 	   switch (op)
 	   {
 	   case UO_Minus: //'-'
-	        cout<<"I am in minus"<<endl;
-            mStack.back().pushStmtVal(unaryExpr,-1 * expr(exp));
+	        mStack.back().pushStmtVal(unaryExpr,-1 * expr(exp));
 		   	break;
 	   case UO_Plus: //'+'
 			mStack.back().pushStmtVal(unaryExpr,expr(exp));
@@ -144,19 +182,27 @@ public:
 
    int expr(Expr *exp){
 	    exp = exp->IgnoreImpCasts();
-	   	if(auto IntLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
+		if(auto decl = dyn_cast<DeclRefExpr>(exp)){
+            declref(decl);
+			int result = mStack.back().getStmtVal(decl);
+			return result;
+		}
+	   	else if(auto IntLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
 			llvm::APInt result = IntLiteral->getValue();
-			cout<<"result:"<<result.getSExtValue()<<endl;
 			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
 			return result.getSExtValue();
 		}else if(auto CharLiteral = dyn_cast<CharacterLiteral>(exp)){ // a = 'a'
 		    return CharLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
 		}else if(auto unaryExpr = dyn_cast<UnaryOperator>(exp)){ // a = -13 and a = +12;
-		    unary(unaryExpr);
-			cout << "I am in unaryExpr"<<endl;
+		    unaryop(unaryExpr);
 			int result = mStack.back().getStmtVal(unaryExpr);
 			return result;
+		}else if(auto binaryExpr = dyn_cast<BinaryOperator>(exp)){
+			binop(binaryExpr);
+			int result = mStack.back().getStmtVal(binaryExpr);
+			return result;
 		}
+		cout << "have not handle this situation"<< endl;
 		return 0;
    }
 
@@ -188,7 +234,6 @@ public:
 		  llvm::errs() << "Please Input an Integer Value : ";
 		  cout << endl;
 		  scanf("%d", &val);
-
 		  mStack.back().bindStmt(callexpr, val);
 	   } else if (callee == mOutput) {
 		   Expr * decl = callexpr->getArg(0);
