@@ -64,6 +64,16 @@ public:
       }
    }
 
+   virtual void VisitForStmt(ForStmt* forstmt){
+      // clang/AST/stmt.h/ line 1179
+      Stmt* init = forstmt->getInit();
+      if(init){
+         for(VisitStmt(init);mEnv->expr(forstmt->getCond());mEnv->expr(forstmt->getInc())){
+            VisitStmt(forstmt->getBody());
+         }
+      }
+   }
+
 private:
    Environment * mEnv;
 };
