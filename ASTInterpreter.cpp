@@ -55,6 +55,15 @@ public:
       }
    }
 
+   virtual void VisitWhileStmt(WhileStmt* whilestmt){
+      // clang/AST/stmt.h/ line 1050
+      Expr* cond = whilestmt->getCond();
+      while(mEnv->expr(cond)){
+         VisitStmt(whilestmt->getBody());
+         //mEnv->mStack.back().
+      }
+   }
+
 private:
    Environment * mEnv;
 };

@@ -47,7 +47,7 @@ public:
 	   mExprs.insert(pair<Stmt* , int> (stmt,value));
    }
    
-   bool hasDeclared(Stmt *stmt){
+   bool exprExits(Stmt *stmt){
 	   return mExprs.find(stmt)!=mExprs.end();
    }
 };
@@ -96,26 +96,28 @@ public:
 	   Expr * exprLeft = binaryExpr->getLHS();
 	   Expr * exprRight = binaryExpr->getRHS();
 	   if (binaryExpr->isAssignmentOp()) {
-		   expr(exprRight);
-		   int val = mStack.back().getStmtVal(exprRight);
+		   int val = expr(exprRight);
+		   // cout<< "val\t" << val << endl;
 		   mStack.back().bindStmt(exprLeft, val);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(exprLeft)) {
 			   Decl * decl = declexpr->getFoundDecl();
 			   mStack.back().bindDecl(decl, val);
+			   // cout << "I am in" << endl;
 		   }
 	   }else{
 		   auto op = binaryExpr->getOpcode();
 		   int left;
 		   int right;
+		   int result;
 		   switch (op){
 	   	   case BO_Add: // +
-	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)+expr(exprRight));
+			   result = expr(exprLeft)+expr(exprRight);
 		       break;
 	   	   case BO_Sub: // -
-	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)-expr(exprRight));
+			   result = expr(exprLeft)-expr(exprRight);
 	          break;
 	       case BO_Mul: // *
-	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)*expr(exprRight));
+	           result = expr(exprLeft)*expr(exprRight);
 	           break;
 	       case BO_Div: // - , a/b,check the b can not be 0;
 	           right = expr(exprRight);
@@ -125,22 +127,27 @@ public:
 			   left = expr(exprLeft); // float?
 			   if(left%right!=0)
 			       cout << "there are loss when div" << endl;
-			   mStack.back().pushStmtVal(binaryExpr,int(left/right)); 
+			   result = int(left/right); 
 	           break;
 	       case BO_LT: // <
-	   		   mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)<expr(exprRight));
+               result = expr(exprLeft)<expr(exprRight);
 	           break;
 	       case BO_GT: // >
-	    	   mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)>expr(exprRight));
+	    	   result = expr(exprLeft)>expr(exprRight);
 	           break;
 	       case BO_EQ: // ==
-	           mStack.back().pushStmtVal(binaryExpr,expr(exprLeft)==expr(exprRight));
+	           result = expr(exprLeft)==expr(exprRight);
 	           break;
 	       default:
 		       cout << "process binaryOp error"<< endl;
 			   exit(0);
 		       break;
 		   }
+		   if(mStack.back().exprExits(binaryExpr)){
+				mStack.back().bindStmt(binaryExpr,result);
+			}else{
+	            mStack.back().pushStmtVal(binaryExpr,result);
+			}
 	   }
    }
 
@@ -156,8 +163,7 @@ public:
 					    mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
 					
-				}  
-				
+				}  	
 		   }
 	   }
    }
@@ -188,8 +194,7 @@ public:
             declref(decl);
 			int result = mStack.back().getStmtVal(decl);
 			return result;
-		}
-	   	else if(auto intLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
+		}else if(auto intLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
 			llvm::APInt result = intLiteral->getValue();
 			// http://www.cs.cmu.edu/~15745/llvm-doxygen/de/d4c/a04857_source.html
 			return result.getSExtValue();
@@ -199,9 +204,10 @@ public:
 		    unaryop(unaryExpr);
 			int result = mStack.back().getStmtVal(unaryExpr);
 			return result;
-		}else if(auto binaryExpr = dyn_cast<BinaryOperator>(exp)){
+		}else if(auto binaryExpr = dyn_cast<BinaryOperator>(exp)){ //+ - * / < > ==
 			binop(binaryExpr);
 			int result = mStack.back().getStmtVal(binaryExpr);
+			// cout << "binary result:\t" << result<<endl;
 			return result;
 		}else if(auto parenExpr = dyn_cast<ParenExpr>(exp)){ // (E)
 			return expr(parenExpr->getSubExpr());
@@ -215,6 +221,7 @@ public:
 	   if (declref->getType()->isIntegerType()) {
 		   Decl* decl = declref->getFoundDecl();
 		   int val = mStack.back().getDeclVal(decl);
+		   // cout<< "declref:\t"<<val<<endl;
 		   mStack.back().bindStmt(declref, val);
 	   }
    }
