@@ -47,12 +47,12 @@ public:
       if(mEnv->expr(cond)){ // True
          cout << "I can in then part" << endl;
          Stmt* thenstmt = ifstmt->getThen();
-         VisitStmt(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
+         Visit(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
       }else{
          if(ifstmt->getElse()){
             cout<< "this have elsestmt"<<endl;
             Stmt* elsestmt = ifstmt->getElse();
-            VisitStmt(elsestmt);
+            Visit(elsestmt);
          }
       }
    }
