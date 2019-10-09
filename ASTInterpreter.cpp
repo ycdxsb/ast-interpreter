@@ -45,12 +45,12 @@ public:
       // todo add StackFrame for then and else block
       Expr* cond = ifstmt->getCond();
       if(mEnv->expr(cond)){ // True
-         cout << "I can in then part" << endl;
+         // cout << "I can in then part" << endl;
          Stmt* thenstmt = ifstmt->getThen();
          Visit(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
       }else{
          if(ifstmt->getElse()){
-            cout<< "this have elsestmt"<<endl;
+            // cout<< "this have elsestmt"<<endl;
             Stmt* elsestmt = ifstmt->getElse();
             Visit(elsestmt);
          }
@@ -61,7 +61,7 @@ public:
       // clang/AST/stmt.h/ line 1050
       Expr* cond = whilestmt->getCond();
       while(mEnv->expr(cond)){
-         VisitStmt(whilestmt->getBody());
+         Visit(whilestmt->getBody());
          //mEnv->mStack.back().
       }
    }
@@ -70,8 +70,8 @@ public:
       // clang/AST/stmt.h/ line 1179
       Stmt* init = forstmt->getInit();
       if(init){
-         for(VisitStmt(init);mEnv->expr(forstmt->getCond());mEnv->expr(forstmt->getInc())){
-            VisitStmt(forstmt->getBody());
+         for(Visit(init);mEnv->expr(forstmt->getCond());Visit(forstmt->getInc())){
+            Visit(forstmt->getBody());
          }
       }
    }

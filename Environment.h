@@ -96,9 +96,9 @@ public:
 	   Expr * exprLeft = binaryExpr->getLHS();
 	   Expr * exprRight = binaryExpr->getRHS();
 	   if (binaryExpr->isAssignmentOp()) {
-		   cout<< "I am in asignOp"<< endl;
+		   //cout<< "I am in asignOp"<< endl;
 		   int val = expr(exprRight);
-		   cout << "The Rightexpr\t"<<val<<endl;
+		   //cout << "The Rightexpr\t"<<val<<endl;
 		   mStack.back().bindStmt(exprLeft, val);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(exprLeft)) {
 			   Decl * decl = declexpr->getFoundDecl();
