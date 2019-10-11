@@ -37,7 +37,7 @@ public:
 
    virtual void VisitDeclStmt(DeclStmt * declstmt) {
       VisitStmt(declstmt);
-	   mEnv->decl(declstmt);
+	   mEnv->declstmt(declstmt);
    }
 
    virtual void VisitIfStmt(IfStmt* ifstmt){

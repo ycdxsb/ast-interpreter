@@ -75,6 +75,7 @@ public:
 
    /// Initialize the Environment
    void init(TranslationUnitDecl * unit) {
+	   mStack.push_back(StackFrame()); // put forward, else when process global will segmentfault because no StackFrame. 
 	   for (TranslationUnitDecl::decl_iterator i =unit->decls_begin(), e = unit->decls_end(); i != e; ++ i) {
 		   if (FunctionDecl * fdecl = dyn_cast<FunctionDecl>(*i) ) {
 			   if (fdecl->getName().equals("FREE")) mFree = fdecl;
@@ -82,9 +83,19 @@ public:
 			   else if (fdecl->getName().equals("GET")) mInput = fdecl;
 			   else if (fdecl->getName().equals("PRINT")) mOutput = fdecl;
 			   else if (fdecl->getName().equals("main")) mEntry = fdecl;
+		   }else { // global var init
+		        if (VarDecl * vardecl = dyn_cast<VarDecl>(*i)) {
+					if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
+			        	if(vardecl->hasInit())
+			            	mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));
+				    	else
+					    	mStack.back().bindDecl(vardecl, 0);
+				}else{ // todo array 
+					
+				}  	
+		   }
 		   }
 	   }
-	   mStack.push_back(StackFrame());
    }
 
    FunctionDecl * getEntry() {
@@ -151,7 +162,8 @@ public:
 	   }
    }
 
-   void decl(DeclStmt * declstmt) {
+
+   void declstmt(DeclStmt * declstmt) {
 	   for (DeclStmt::decl_iterator it = declstmt->decl_begin(), ie = declstmt->decl_end();
 			   it != ie; ++ it) {
 		   Decl * decl = *it;
