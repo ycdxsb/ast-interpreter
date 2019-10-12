@@ -33,6 +33,15 @@ public:
    virtual void VisitCallExpr(CallExpr * call) {
       VisitStmt(call);
 	   mEnv->call(call);
+      if (FunctionDecl* funcdecl = call->getDirectCallee()){
+         if ((!funcdecl->getName().equals("GET")) && 
+             (!funcdecl->getName().equals("PRINT")) && 
+             (!funcdecl->getName().equals("MALLOC")) && 
+             (!funcdecl->getName().equals("FREE"))){
+             Visit(funcdecl->getBody());
+             mEnv->popStackFrame();
+         }
+      }
    }
 
    virtual void VisitDeclStmt(DeclStmt * declstmt) {

@@ -72,6 +72,10 @@ public:
    Environment() : mStack(), mFree(NULL), mMalloc(NULL), mInput(NULL), mOutput(NULL), mEntry(NULL) {
    }
 
+   void popStackFrame(){
+	   mStack.pop_back();
+   }
+
 
    /// Initialize the Environment
    void init(TranslationUnitDecl * unit) {
@@ -83,18 +87,16 @@ public:
 			   else if (fdecl->getName().equals("GET")) mInput = fdecl;
 			   else if (fdecl->getName().equals("PRINT")) mOutput = fdecl;
 			   else if (fdecl->getName().equals("main")) mEntry = fdecl;
-		   }else { // global var init
-		        if (VarDecl * vardecl = dyn_cast<VarDecl>(*i)) {
-					if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
-			        	if(vardecl->hasInit())
-			            	mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));
-				    	else
-					    	mStack.back().bindDecl(vardecl, 0);
+		   }else if (VarDecl * vardecl = dyn_cast<VarDecl>(*i)){ // global var init
+				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
+			    	if(vardecl->hasInit())
+		            	mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));
+			    	else
+				    	mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
-					
+				
 				}  	
-		        }
-		   }
+		    }
        }
    }
 
@@ -123,6 +125,10 @@ public:
 								int64_t tmp = mStack.back().getDeclVal(vardecl);
 								int* p = (int*) tmp;
 								*(p+index) = val;
+							}else if(array->getElementType().getTypePtr()->isCharType()){ // Char
+								int64_t tmp = mStack.back().getDeclVal(vardecl);
+								char* p = (char*) tmp;
+								*(p+index) = (char) val;
 							}
 						}
 					}
@@ -254,7 +260,7 @@ public:
 			return result;
 		}else if(auto parenExpr = dyn_cast<ParenExpr>(exp)){ // (E)
 			return expr(parenExpr->getSubExpr());
-		}else if(auto array = dyn_cast<ArraySubscriptExpr>(exp)){
+		}else if(auto array = dyn_cast<ArraySubscriptExpr>(exp)){ // a[12]
 			if (DeclRefExpr* declexpr = dyn_cast<DeclRefExpr>(array->getLHS()->IgnoreImpCasts())){
                 Decl* decl = declexpr->getFoundDecl();
 				int64_t index = expr(array->getRHS());
@@ -263,6 +269,10 @@ public:
 						if(array->getElementType().getTypePtr()->isIntegerType()) { // IntegerArray
 							int64_t tmp = mStack.back().getDeclVal(vardecl);
 							int* p = (int*) tmp;
+							return *(p+index);
+						}else if(array->getElementType().getTypePtr()->isIntegerType()) { // CharArray
+							int64_t tmp = mStack.back().getDeclVal(vardecl);
+							char* p = (char*) tmp;
 							return *(p+index);
 						}
 					}
@@ -314,7 +324,17 @@ public:
 		   
 	   } else if(callee == mFree){
 
-	   } // other callee
+	   } else{// other callee
+	      vector<int64_t> args; 
+	      for(auto i = callexpr->arg_begin(), e = callexpr->arg_end();i!=e;i++){
+			  args.push_back(expr(*i));
+		  }
+		  mStack.push_back(StackFrame());
+		  int j = 0;
+		  for(auto i = callee->param_begin(),e = callee->param_end();i!=e;i++,j++){
+			  mStack.back().bindDecl(*i,args[j]);
+		  }
+	   }
    }
 };
 
