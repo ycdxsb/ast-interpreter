@@ -18,10 +18,25 @@ class StackFrame {
    std::map<Stmt*, int64_t> mExprs;
    /// The current stmt
    Stmt * mPC;
+
+   bool retType = 0; // 0-> void 1 -> int
+   int64_t retValue = 0;  
 public:
    StackFrame() : mVars(), mExprs(), mPC() {
    }
 
+   void setReturn(bool tp,int64_t val){
+	   retType = tp;
+	   retValue = val;
+   }
+
+   int64_t getReturn(){
+	   if(retType){
+		   return retValue;
+	   }
+	   return 0; 
+   }
+   
    void bindDecl(Decl* decl, int64_t val) {
       mVars[decl] = val;
    }    
@@ -59,8 +74,6 @@ class Heap {
 */
 
 class Environment {
-   std::vector<StackFrame> mStack;
-
    FunctionDecl * mFree;				/// Declartions to the built-in functions
    FunctionDecl * mMalloc;
    FunctionDecl * mInput;
@@ -68,14 +81,11 @@ class Environment {
 
    FunctionDecl * mEntry;
 public:
+   std::vector<StackFrame> mStack;
+   
    /// Get the declartions to the built-in functions
    Environment() : mStack(), mFree(NULL), mMalloc(NULL), mInput(NULL), mOutput(NULL), mEntry(NULL) {
    }
-
-   void popStackFrame(){
-	   mStack.pop_back();
-   }
-
 
    /// Initialize the Environment
    void init(TranslationUnitDecl * unit) {
@@ -217,6 +227,10 @@ public:
 	   }
    }
 
+   void returnstmt(ReturnStmt *returnStmt){
+	   mStack.back().setReturn(true,expr(returnStmt->getRetValue()));
+   }
+
    void unaryop(UnaryOperator* unaryExpr){ // - +
 	   // Clang/AST/Expr.h/ line 1714
 	   auto op = unaryExpr->getOpcode();
@@ -278,6 +292,10 @@ public:
 					}
 				}
 		    }
+		}else if(auto callexpr = dyn_cast<CallExpr>(exp)){
+			cout<<"I am in callexpr"<<endl;
+			cout << mStack.back().getStmtVal(callexpr) <<endl;
+		    return mStack.back().getStmtVal(callexpr);
 		}
 		cout << "have not handle this situation"<< endl;
 		return 0;
@@ -317,7 +335,7 @@ public:
 		   if(auto array = dyn_cast<ArraySubscriptExpr>(exp)){
 			   cout<< expr(decl)<<endl;
 		   }else{
-		      val = mStack.back().getStmtVal(decl);
+		      val = expr(decl);
 		      cout << val << endl; 
 		   }
 	   } else if(callee == mMalloc){

@@ -39,7 +39,9 @@ public:
              (!funcdecl->getName().equals("MALLOC")) && 
              (!funcdecl->getName().equals("FREE"))){
              Visit(funcdecl->getBody());
-             mEnv->popStackFrame();
+             int64_t retvalue = mEnv->mStack.back().getReturn();
+             mEnv->mStack.pop_back();
+             mEnv->mStack.back().pushStmtVal(call,retvalue);
          }
       }
    }
@@ -83,6 +85,10 @@ public:
             Visit(forstmt->getBody());
          }
       }
+   }
+
+   virtual void VisitReturnStmt(ReturnStmt* returnStmt){
+      mEnv->returnstmt(returnStmt);
    }
 
 private:
