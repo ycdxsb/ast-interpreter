@@ -14,25 +14,25 @@ using namespace std;
 class StackFrame {
    /// StackFrame maps Variable Declaration to Value
    /// Which are either integer or addresses (also represented using an Integer value)
-   std::map<Decl*, int> mVars;
-   std::map<Stmt*, int> mExprs;
+   std::map<Decl*, int64_t> mVars; // change int -> int64_t, so that is can store int* 
+   std::map<Stmt*, int64_t> mExprs;
    /// The current stmt
    Stmt * mPC;
 public:
    StackFrame() : mVars(), mExprs(), mPC() {
    }
 
-   void bindDecl(Decl* decl, int val) {
+   void bindDecl(Decl* decl, int64_t val) {
       mVars[decl] = val;
    }    
-   int getDeclVal(Decl * decl) {
+   int64_t getDeclVal(Decl * decl) {
       assert (mVars.find(decl) != mVars.end());
       return mVars.find(decl)->second;
    }
-   void bindStmt(Stmt * stmt, int val) {
+   void bindStmt(Stmt * stmt, int64_t val) {
 	   mExprs[stmt] = val;
    }
-   int getStmtVal(Stmt * stmt) {
+   int64_t getStmtVal(Stmt * stmt) {
 	   assert (mExprs.find(stmt) != mExprs.end());
 	   return mExprs[stmt];
    }
@@ -43,8 +43,8 @@ public:
 	   return mPC;
    }
 
-   void pushStmtVal(Stmt *stmt,int value) {
-	   mExprs.insert(pair<Stmt* , int> (stmt,value));
+   void pushStmtVal(Stmt *stmt,int64_t value) {
+	   mExprs.insert(pair<Stmt* , int64_t> (stmt,value));
    }
    
    bool exprExits(Stmt *stmt){
@@ -93,9 +93,9 @@ public:
 				}else{ // todo array 
 					
 				}  	
+		        }
 		   }
-		   }
-	   }
+       }
    }
 
    FunctionDecl * getEntry() {
@@ -107,19 +107,32 @@ public:
 	   Expr * exprLeft = binaryExpr->getLHS();
 	   Expr * exprRight = binaryExpr->getRHS();
 	   if (binaryExpr->isAssignmentOp()) {
-		   //cout<< "I am in asignOp"<< endl;
-		   int val = expr(exprRight);
-		   //cout << "The Rightexpr\t"<<val<<endl;
-		   mStack.back().bindStmt(exprLeft, val);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(exprLeft)) {
+			   int64_t val = expr(exprRight);
+		       mStack.back().bindStmt(exprLeft, val);
 			   Decl * decl = declexpr->getFoundDecl();
 			   mStack.back().bindDecl(decl, val);
+		   }else if(auto array = dyn_cast<ArraySubscriptExpr>(exprLeft)){
+			   if (DeclRefExpr* declexpr = dyn_cast<DeclRefExpr>(array->getLHS()->IgnoreImpCasts())){
+                    Decl* decl = declexpr->getFoundDecl();
+					int64_t val = expr(exprRight);
+                    int64_t index = expr(array->getRHS());
+					if (VarDecl * vardecl = dyn_cast<VarDecl>(decl)){
+						if(auto array = dyn_cast<ConstantArrayType>(vardecl->getType().getTypePtr())){
+							if(array->getElementType().getTypePtr()->isIntegerType()) { // IntegerArray
+								int64_t tmp = mStack.back().getDeclVal(vardecl);
+								int* p = (int*) tmp;
+								*(p+index) = val;
+							}
+						}
+					}
+			    }
 		   }
 	   }else{
 		   auto op = binaryExpr->getOpcode();
-		   int left;
-		   int right;
-		   int result;
+		   int64_t left;
+		   int64_t right;
+		   int64_t result;
 		   switch (op){
 	   	   case BO_Add: // +
 			   result = expr(exprLeft)+expr(exprRight);
@@ -138,7 +151,7 @@ public:
 			   left = expr(exprLeft); // float?
 			   if(left%right!=0)
 			       cout << "there are loss when div" << endl;
-			   result = int(left/right); 
+			   result = int64_t(left/right); 
 	           break;
 	       case BO_LT: // <
                result = expr(exprLeft)<expr(exprRight);
@@ -174,7 +187,25 @@ public:
 				    else
 					    mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
-					
+					if(auto array = dyn_cast<ConstantArrayType>(vardecl->getType().getTypePtr())){ // int/char A[100];
+						int64_t length = array->getSize().getSExtValue();
+						if(array->getElementType().getTypePtr()->isIntegerType()){ // IntegerArray
+                            int* a = new int[length];
+							for(int i = 0 ;i < length; i++){
+								a[i] = 0;
+							}
+							mStack.back().bindDecl(vardecl,(int64_t)a);
+						}else if(array->getElementType().getTypePtr()->isCharType()){ // Clang/AST/Type.h line 1652
+							char* a = new char[length];
+							for(int i = 0 ;i < length; i++){
+								a[i] = 0;
+							}
+							mStack.back().bindDecl(vardecl,(int64_t)a);
+						}
+						if(vardecl->hasInit()){
+							// todo , guess Stmt **VarDecl::getInitAddress 
+						}
+					}
 				}  	
 		   }
 	   }
@@ -200,11 +231,11 @@ public:
    }
     
 
-   int expr(Expr *exp){
+   int64_t expr(Expr *exp){
 	    exp = exp->IgnoreImpCasts();
 		if(auto decl = dyn_cast<DeclRefExpr>(exp)){
             declref(decl);
-			int result = mStack.back().getStmtVal(decl);
+			int64_t result = mStack.back().getStmtVal(decl);
 			return result;
 		}else if(auto intLiteral = dyn_cast<IntegerLiteral>(exp)){ //a = 12
 			llvm::APInt result = intLiteral->getValue();
@@ -214,15 +245,29 @@ public:
 		    return charLiteral->getValue(); // Clang/AST/Expr.h/ line 1369
 		}else if(auto unaryExpr = dyn_cast<UnaryOperator>(exp)){ // a = -13 and a = +12;
 		    unaryop(unaryExpr);
-			int result = mStack.back().getStmtVal(unaryExpr);
+			int64_t result = mStack.back().getStmtVal(unaryExpr);
 			return result;
 		}else if(auto binaryExpr = dyn_cast<BinaryOperator>(exp)){ //+ - * / < > ==
 			binop(binaryExpr);
-			int result = mStack.back().getStmtVal(binaryExpr);
+			int64_t result = mStack.back().getStmtVal(binaryExpr);
 			// cout << "binary result:\t" << result<<endl;
 			return result;
 		}else if(auto parenExpr = dyn_cast<ParenExpr>(exp)){ // (E)
 			return expr(parenExpr->getSubExpr());
+		}else if(auto array = dyn_cast<ArraySubscriptExpr>(exp)){
+			if (DeclRefExpr* declexpr = dyn_cast<DeclRefExpr>(array->getLHS()->IgnoreImpCasts())){
+                Decl* decl = declexpr->getFoundDecl();
+				int64_t index = expr(array->getRHS());
+				if (VarDecl * vardecl = dyn_cast<VarDecl>(decl)){
+					if(auto array = dyn_cast<ConstantArrayType>(vardecl->getType().getTypePtr())){
+						if(array->getElementType().getTypePtr()->isIntegerType()) { // IntegerArray
+							int64_t tmp = mStack.back().getDeclVal(vardecl);
+							int* p = (int*) tmp;
+							return *(p+index);
+						}
+					}
+				}
+		    }
 		}
 		cout << "have not handle this situation"<< endl;
 		return 0;
@@ -232,7 +277,7 @@ public:
 	   mStack.back().setPC(declref);
 	   if (declref->getType()->isIntegerType()) {
 		   Decl* decl = declref->getFoundDecl();
-		   int val = mStack.back().getDeclVal(decl);
+		   int64_t val = mStack.back().getDeclVal(decl);
 		   // cout<< "declref:\t"<<val<<endl;
 		   mStack.back().bindStmt(declref, val);
 	   }
@@ -242,7 +287,7 @@ public:
 	   mStack.back().setPC(castexpr);
 	   if (castexpr->getType()->isIntegerType()) {
 		   Expr * expr = castexpr->getSubExpr();
-		   int val = mStack.back().getStmtVal(expr);
+		   int64_t val = mStack.back().getStmtVal(expr);
 		   mStack.back().bindStmt(castexpr, val );
 	   }
    }
@@ -250,7 +295,7 @@ public:
    /// !TODO Support Function Call
    void call(CallExpr * callexpr) {
 	   mStack.back().setPC(callexpr);
-	   int val = 0;
+	   int64_t val = 0;
 	   FunctionDecl * callee = callexpr->getDirectCallee();
 	   if (callee == mInput) {
 		  cout << "Please Input an Integer Value : " << endl;
@@ -258,8 +303,13 @@ public:
 		  mStack.back().bindStmt(callexpr, val);
 	   } else if (callee == mOutput) { // todo when val is char , cout char type value
 		   Expr * decl = callexpr->getArg(0);
-		   val = mStack.back().getStmtVal(decl);
-		   cout << val << endl; 
+		   Expr * exp = decl->IgnoreImpCasts();
+		   if(auto array = dyn_cast<ArraySubscriptExpr>(exp)){
+			   cout<< expr(decl)<<endl;
+		   }else{
+		      val = mStack.back().getStmtVal(decl);
+		      cout << val << endl; 
+		   }
 	   } else if(callee == mMalloc){
 		   
 	   } else if(callee == mFree){
