@@ -228,7 +228,8 @@ public:
    }
 
    void returnstmt(ReturnStmt *returnStmt){
-	   mStack.back().setReturn(true,expr(returnStmt->getRetValue()));
+	   int64_t value = expr(returnStmt->getRetValue());
+	   mStack.back().setReturn(true,value);
    }
 
    void unaryop(UnaryOperator* unaryExpr){ // - +

@@ -89,6 +89,7 @@ public:
    }
 
    virtual void VisitReturnStmt(ReturnStmt* returnStmt){
+      Visit(returnStmt->getRetValue());
       mEnv->returnstmt(returnStmt);
    }
 
