@@ -293,9 +293,7 @@ public:
 				}
 		    }
 		}else if(auto callexpr = dyn_cast<CallExpr>(exp)){
-			cout<<"I am in callexpr"<<endl;
-			cout << mStack.back().getStmtVal(callexpr) <<endl;
-		    return mStack.back().getStmtVal(callexpr);
+			return mStack.back().getStmtVal(callexpr);
 		}
 		cout << "have not handle this situation"<< endl;
 		return 0;

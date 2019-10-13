@@ -81,9 +81,10 @@ public:
       // clang/AST/stmt.h/ line 1179
       Stmt* init = forstmt->getInit();
       if(init){
-         for(Visit(init);mEnv->expr(forstmt->getCond());Visit(forstmt->getInc())){
+         Visit(init);
+      }
+      for(;mEnv->expr(forstmt->getCond());Visit(forstmt->getInc())){
             Visit(forstmt->getBody());
-         }
       }
    }
 

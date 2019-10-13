@@ -3,19 +3,21 @@ extern void * MALLOC(int);
 extern void FREE(void *);
 extern void PRINT(int);
 
-int b;
 int f(int x) {
-  PRINT(10);
-  return x + 10;
+  int a[3];
+  int i=0;
+  PRINT(x);
+  for (i=1; i<3; i = i+1) {
+    a[i] = x + i;
+    PRINT(a[i]);
+  }  
+  if (x> 0) return a[1];
+  return a[2];
 }
-
 int main() {
    int a;
    int b;
    a = -10;
-   if (a > 0) 
-      b = f(a);
-   else 
-      b = f(-a);
+   b = f(a);
    PRINT(b);
 }
