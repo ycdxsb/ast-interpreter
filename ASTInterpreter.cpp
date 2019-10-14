@@ -58,12 +58,10 @@ public:
       // todo add StackFrame for then and else block
       Expr* cond = ifstmt->getCond();
       if(mEnv->expr(cond)){ // True
-         // cout << "I can in then part" << endl;
          Stmt* thenstmt = ifstmt->getThen();
          Visit(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
       }else{
          if(ifstmt->getElse()){
-            // cout<< "this have elsestmt"<<endl;
             Stmt* elsestmt = ifstmt->getElse();
             Visit(elsestmt);
          }
