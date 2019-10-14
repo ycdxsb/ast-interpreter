@@ -11,20 +11,22 @@ using namespace clang;
 
 #include "Environment.h"
 
-class InterpreterVisitor : 
-   public EvaluatedExprVisitor<InterpreterVisitor> {
+class InterpreterVisitor : public EvaluatedExprVisitor<InterpreterVisitor>
+{
 public:
-   explicit InterpreterVisitor(const ASTContext &context, Environment * env)
-   : EvaluatedExprVisitor(context), mEnv(env) {}
+   explicit InterpreterVisitor(const ASTContext &context, Environment *env)
+       : EvaluatedExprVisitor(context), mEnv(env) {}
    virtual ~InterpreterVisitor() {}
 
-   virtual void VisitBinaryOperator (BinaryOperator * bop) {
+   virtual void VisitBinaryOperator(BinaryOperator *bop)
+   {
       VisitStmt(bop);
-	   mEnv->binop(bop);
+      mEnv->binop(bop);
    }
-   virtual void VisitDeclRefExpr(DeclRefExpr * expr) {
+   virtual void VisitDeclRefExpr(DeclRefExpr *expr)
+   {
       VisitStmt(expr);
-	   mEnv->declref(expr);
+      mEnv->declref(expr);
    }
    /*
    virtual void VisitCastExpr(CastExpr * expr) {
@@ -32,101 +34,124 @@ public:
 	   mEnv->cast(expr);
    }
    */
-   virtual void VisitCallExpr(CallExpr * call) {
+   virtual void VisitCallExpr(CallExpr *call)
+   {
       VisitStmt(call);
-	   mEnv->call(call);
-      if (FunctionDecl* funcdecl = call->getDirectCallee()){
-         if ((!funcdecl->getName().equals("GET")) && 
-             (!funcdecl->getName().equals("PRINT")) && 
-             (!funcdecl->getName().equals("MALLOC")) && 
-             (!funcdecl->getName().equals("FREE"))){
-             Visit(funcdecl->getBody());
-             int64_t retvalue = mEnv->mStack.back().getReturn();
-             mEnv->mStack.pop_back();
-             mEnv->mStack.back().pushStmtVal(call,retvalue);
+      mEnv->call(call);
+      if (FunctionDecl *funcdecl = call->getDirectCallee())
+      {
+         if ((!funcdecl->getName().equals("GET")) &&
+             (!funcdecl->getName().equals("PRINT")) &&
+             (!funcdecl->getName().equals("MALLOC")) &&
+             (!funcdecl->getName().equals("FREE")))
+         {
+            Visit(funcdecl->getBody());
+            int64_t retvalue = mEnv->mStack.back().getReturn();
+            mEnv->mStack.pop_back();
+            mEnv->mStack.back().pushStmtVal(call, retvalue);
          }
       }
    }
 
-   virtual void VisitDeclStmt(DeclStmt * declstmt) {
+   virtual void VisitDeclStmt(DeclStmt *declstmt)
+   {
       VisitStmt(declstmt);
-	   mEnv->declstmt(declstmt);
+      mEnv->declstmt(declstmt);
    }
 
-   virtual void VisitIfStmt(IfStmt* ifstmt){
+   virtual void VisitIfStmt(IfStmt *ifstmt)
+   {
       // clang/AST/stmt.h/ line 905
       // todo add StackFrame for then and else block
-      Expr* cond = ifstmt->getCond();
-      if(mEnv->expr(cond)){ // True
-         Stmt* thenstmt = ifstmt->getThen();
+      Expr *cond = ifstmt->getCond();
+      if (mEnv->expr(cond))
+      { // True
+         Stmt *thenstmt = ifstmt->getThen();
          Visit(thenstmt); //clang/AST/EvaluatedExprVisitor.h line 100
-      }else{
-         if(ifstmt->getElse()){
-            Stmt* elsestmt = ifstmt->getElse();
+      }
+      else
+      {
+         if (ifstmt->getElse())
+         {
+            Stmt *elsestmt = ifstmt->getElse();
             Visit(elsestmt);
          }
       }
    }
 
-   virtual void VisitWhileStmt(WhileStmt* whilestmt){
+   virtual void VisitWhileStmt(WhileStmt *whilestmt)
+   {
       // clang/AST/stmt.h/ line 1050
-      Expr* cond = whilestmt->getCond();
-      while(mEnv->expr(cond)){
+      Expr *cond = whilestmt->getCond();
+      while (mEnv->expr(cond))
+      {
          Visit(whilestmt->getBody());
          //mEnv->mStack.back().
       }
    }
 
-   virtual void VisitForStmt(ForStmt* forstmt){
+   virtual void VisitForStmt(ForStmt *forstmt)
+   {
       // clang/AST/stmt.h/ line 1179
-      Stmt* init = forstmt->getInit();
-      if(init){
+      Stmt *init = forstmt->getInit();
+      if (init)
+      {
          Visit(init);
       }
-      for(;mEnv->expr(forstmt->getCond());Visit(forstmt->getInc())){
-            Visit(forstmt->getBody());
+      for (; mEnv->expr(forstmt->getCond()); Visit(forstmt->getInc()))
+      {
+         Visit(forstmt->getBody());
       }
    }
 
-   virtual void VisitReturnStmt(ReturnStmt* returnStmt){
+   virtual void VisitReturnStmt(ReturnStmt *returnStmt)
+   {
       Visit(returnStmt->getRetValue());
       mEnv->returnstmt(returnStmt);
    }
 
 private:
-   Environment * mEnv;
+   Environment *mEnv;
 };
 
-class InterpreterConsumer : public ASTConsumer {
+class InterpreterConsumer : public ASTConsumer
+{
 public:
-   explicit InterpreterConsumer(const ASTContext& context) : mEnv(),
-   	   mVisitor(context, &mEnv) {
+   explicit InterpreterConsumer(const ASTContext &context) : mEnv(),
+                                                             mVisitor(context, &mEnv)
+   {
    }
    virtual ~InterpreterConsumer() {}
 
-   virtual void HandleTranslationUnit(clang::ASTContext &Context) {
-	   TranslationUnitDecl * decl = Context.getTranslationUnitDecl();
-	   mEnv.init(decl);
+   virtual void HandleTranslationUnit(clang::ASTContext &Context)
+   {
+      TranslationUnitDecl *decl = Context.getTranslationUnitDecl();
+      mEnv.init(decl);
 
-	   FunctionDecl * entry = mEnv.getEntry();
-	   mVisitor.VisitStmt(entry->getBody());
-  }
+      FunctionDecl *entry = mEnv.getEntry();
+      mVisitor.VisitStmt(entry->getBody());
+   }
+
 private:
    Environment mEnv;
    InterpreterVisitor mVisitor;
 };
 
-class InterpreterClassAction : public ASTFrontendAction {
-public: 
-  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
-    clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
-    return std::unique_ptr<clang::ASTConsumer>(
-        new InterpreterConsumer(Compiler.getASTContext()));
-  }
+class InterpreterClassAction : public ASTFrontendAction
+{
+public:
+   virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
+       clang::CompilerInstance &Compiler, llvm::StringRef InFile)
+   {
+      return std::unique_ptr<clang::ASTConsumer>(
+          new InterpreterConsumer(Compiler.getASTContext()));
+   }
 };
 
-int main (int argc, char ** argv) {
-   if (argc > 1) {
-       clang::tooling::runToolOnCode(new InterpreterClassAction, argv[1]);
+int main(int argc, char **argv)
+{
+   if (argc > 1)
+   {
+      clang::tooling::runToolOnCode(new InterpreterClassAction, argv[1]);
    }
 }
