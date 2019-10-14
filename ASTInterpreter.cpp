@@ -26,10 +26,12 @@ public:
       VisitStmt(expr);
 	   mEnv->declref(expr);
    }
+   /*
    virtual void VisitCastExpr(CastExpr * expr) {
       VisitStmt(expr);
 	   mEnv->cast(expr);
    }
+   */
    virtual void VisitCallExpr(CallExpr * call) {
       VisitStmt(call);
 	   mEnv->call(call);

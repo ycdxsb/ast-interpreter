@@ -7,7 +7,7 @@ int main() {
    int* a;
    int* b;
    int* c[2];
-   a = MALLOC(sizeof(int)*2);
+   a = (int*)MALLOC(sizeof(int)*2);
 
    *a = 10;
    *(a+1) = 20;

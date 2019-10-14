@@ -10,7 +10,8 @@ int main() {
    b = 10;
    
    a = (int*)MALLOC(sizeof(int));
+   PRINT(b);
    *a = b;
+   PRINT(b);
    PRINT(*a);
-   FREE(a);
 }

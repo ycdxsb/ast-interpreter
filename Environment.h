@@ -68,10 +68,18 @@ public:
 };
 
 /// Heap maps address to a value
-/*
+
 class Heap {
+    std::map<int64_t,int64_t> heap;
+public:
+    Heap(): heap() {}
+    ~Heap() {}
+    
+    void push(int64_t addr, int64_t value){
+		heap.insert(pair<int64_t, int64_t>(addr,value));
+	}
 };
-*/
+
 
 class Environment {
    FunctionDecl * mFree;				/// Declartions to the built-in functions
@@ -98,7 +106,8 @@ public:
 			   else if (fdecl->getName().equals("PRINT")) mOutput = fdecl;
 			   else if (fdecl->getName().equals("main")) mEntry = fdecl;
 		   }else if (VarDecl * vardecl = dyn_cast<VarDecl>(*i)){ // global var init
-				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isPointerType()){
+				if(vardecl->getType().getTypePtr()->isIntegerType() || vardecl->getType().getTypePtr()->isCharType() || 
+				vardecl->getType().getTypePtr()->isPointerType() ){
 			    	if(vardecl->hasInit())
 		            	mStack.back().bindDecl(vardecl, expr(vardecl->getInit()));
 			    	else
@@ -143,6 +152,11 @@ public:
 						}
 					}
 			    }
+		   }else if(auto unaryExpr = dyn_cast<UnaryOperator>(exprLeft)){ // *(p+1)
+				int64_t val = expr(exprRight);
+				int64_t addr = expr(unaryExpr->getSubExpr());
+				int64_t* p = (int64_t*)addr;
+				*p = val; 
 		   }
 	   }else{
 		   auto op = binaryExpr->getOpcode();
@@ -151,7 +165,12 @@ public:
 		   int64_t result;
 		   switch (op){
 	   	   case BO_Add: // +
-			   result = expr(exprLeft)+expr(exprRight);
+			   if(exprLeft->getType().getTypePtr()->isPointerType()){ // *(p+2);
+			       int64_t addr_base = expr(exprLeft);
+				   result = addr_base+sizeof(int64_t)*expr(exprRight);
+			   }else{
+					result = expr(exprLeft)+expr(exprRight);
+			   }
 		       break;
 	   	   case BO_Sub: // -
 			   result = expr(exprLeft)-expr(exprRight);
@@ -204,6 +223,7 @@ public:
 					    mStack.back().bindDecl(vardecl, 0);
 				}else{ // todo array 
 					if(auto array = dyn_cast<ConstantArrayType>(vardecl->getType().getTypePtr())){ // int/char A[100];
+					    cout<< "I am in"<<endl;
 						int64_t length = array->getSize().getSExtValue();
 						if(array->getElementType().getTypePtr()->isIntegerType()){ // IntegerArray
                             int* a = new int[length];
@@ -217,10 +237,13 @@ public:
 								a[i] = 0;
 							}
 							mStack.back().bindDecl(vardecl,(int64_t)a);
+						}else{
+							cout<<"I am in too"<<endl;
 						}
+						/*
 						if(vardecl->hasInit()){
 							// todo , guess Stmt **VarDecl::getInitAddress 
-						}
+						}*/
 					}
 				}  	
 		   }
@@ -244,6 +267,9 @@ public:
 	   case UO_Plus: //'+'
 			mStack.back().pushStmtVal(unaryExpr,expr(exp));
 	        break;
+	   case UO_Deref: // '*'
+			mStack.back().pushStmtVal(unaryExpr,*(int64_t*)expr(unaryExpr->getSubExpr()));
+			break;
 	   default:
 	       cout<< "process unaryOp error"<<endl;
 		   exit(0);
@@ -271,7 +297,6 @@ public:
 		}else if(auto binaryExpr = dyn_cast<BinaryOperator>(exp)){ //+ - * / < > ==
 			binop(binaryExpr);
 			int64_t result = mStack.back().getStmtVal(binaryExpr);
-			// cout << "binary result:\t" << result<<endl;
 			return result;
 		}else if(auto parenExpr = dyn_cast<ParenExpr>(exp)){ // (E)
 			return expr(parenExpr->getSubExpr());
@@ -295,6 +320,16 @@ public:
 		    }
 		}else if(auto callexpr = dyn_cast<CallExpr>(exp)){
 			return mStack.back().getStmtVal(callexpr);
+		}else if(auto sizeofexpr = dyn_cast<UnaryExprOrTypeTraitExpr>(exp)){
+			if(sizeofexpr->getKind()==UETT_SizeOf){ //sizeof
+				if(sizeofexpr->getArgumentType()->isIntegerType()){
+					return sizeof(int64_t); // 8 byte
+				}else if(sizeofexpr->getArgumentType()->isPointerType()){
+					return sizeof(int64_t*); // 8 byte
+				}
+			}
+		}else if(auto castexpr = dyn_cast<CStyleCastExpr>(exp)){
+			return expr(castexpr->getSubExpr());
 		}
 		cout << "have not handle this situation"<< endl;
 		return 0;
@@ -305,20 +340,28 @@ public:
 	   if (declref->getType()->isIntegerType()) {
 		   Decl* decl = declref->getFoundDecl();
 		   int64_t val = mStack.back().getDeclVal(decl);
-		   // cout<< "declref:\t"<<val<<endl;
 		   mStack.back().bindStmt(declref, val);
+	   }else if(declref->getType()->isPointerType()){
+		   Decl* decl = declref->getFoundDecl();
+		   int64_t val = mStack.back().getDeclVal(decl);
+		   mStack.back().bindStmt(declref,val);
 	   }
    }
-
+/*
    void cast(CastExpr * castexpr) {
 	   mStack.back().setPC(castexpr);
 	   if (castexpr->getType()->isIntegerType()) {
-		   Expr * expr = castexpr->getSubExpr();
-		   int64_t val = mStack.back().getStmtVal(expr);
+		   cout<<"I am in IntegerType"<< endl;
+		   Expr * exp = castexpr->getSubExpr();
+		   int64_t val = expr(exp);
+		   cout<<"Integer val\t" <<val<<endl;
 		   mStack.back().bindStmt(castexpr, val );
+	   }else if(castexpr->getType()->isPointerType()){
+		   cout<< "I am in PointerType"<<endl;
+		   cout<< "Pointer Val\t"
 	   }
    }
-
+*/
    /// !TODO Support Function Call
    void call(CallExpr * callexpr) {
 	   mStack.back().setPC(callexpr);
@@ -338,9 +381,12 @@ public:
 		      cout << val << endl; 
 		   }
 	   } else if(callee == mMalloc){
-		   
+		   int64_t malloc_size = expr(callexpr->getArg(0));
+		   int64_t* p = (int64_t*)std::malloc(malloc_size);
+		   mStack.back().bindStmt(callexpr,(int64_t)p);
 	   } else if(callee == mFree){
-
+		   int64_t* p =(int64_t*)expr(callexpr->getArg(0));
+		   std::free(p);
 	   } else{// other callee
 	      vector<int64_t> args; 
 	      for(auto i = callexpr->arg_begin(), e = callexpr->arg_end();i!=e;i++){
