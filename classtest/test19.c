@@ -11,9 +11,12 @@ int main() {
 
    *a = 10;
    *(a+1) = 20;
+   PRINT(*a);
+   PRINT(*(a+1));
    c[0] = a;
-   c[1] = a+1;
+   PRINT(10);
+//   c[1] = a+1;
 
-   PRINT(*c[0]);
-   PRINT(*c[1]);
+   PRINT(*(c[0]));
+//   PRINT(*c[1]);
 }
