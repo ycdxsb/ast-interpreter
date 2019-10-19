@@ -20,11 +20,17 @@ public:
 
    virtual void VisitBinaryOperator(BinaryOperator *bop)
    {
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }      
       VisitStmt(bop);
       mEnv->binop(bop);
    }
    virtual void VisitDeclRefExpr(DeclRefExpr *expr)
    {
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       VisitStmt(expr);
       mEnv->declref(expr);
    }
@@ -36,6 +42,9 @@ public:
    */
    virtual void VisitCallExpr(CallExpr *call)
    {
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       VisitStmt(call);
       mEnv->call(call);
       if (FunctionDecl *funcdecl = call->getDirectCallee())
@@ -55,6 +64,9 @@ public:
 
    virtual void VisitDeclStmt(DeclStmt *declstmt)
    {
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       VisitStmt(declstmt);
       mEnv->declstmt(declstmt);
    }
@@ -63,6 +75,9 @@ public:
    {
       // clang/AST/stmt.h/ line 905
       // todo add StackFrame for then and else block
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       Expr *cond = ifstmt->getCond();
       if (mEnv->expr(cond))
       { // True
@@ -82,6 +97,9 @@ public:
    virtual void VisitWhileStmt(WhileStmt *whilestmt)
    {
       // clang/AST/stmt.h/ line 1050
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       Expr *cond = whilestmt->getCond();
       while (mEnv->expr(cond))
       {
@@ -93,6 +111,9 @@ public:
    virtual void VisitForStmt(ForStmt *forstmt)
    {
       // clang/AST/stmt.h/ line 1179
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       Stmt *init = forstmt->getInit();
       if (init)
       {
@@ -106,6 +127,9 @@ public:
 
    virtual void VisitReturnStmt(ReturnStmt *returnStmt)
    {
+      if(mEnv->mStack.back().haveReturn()){
+         return;
+      }  
       Visit(returnStmt->getRetValue());
       mEnv->returnstmt(returnStmt);
    }

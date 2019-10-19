@@ -34,6 +34,14 @@ public:
 		retValue = val;
 	}
 
+    bool haveReturn(){
+		if(retType==0 && retValue==0){
+			return false;
+		}else{
+			return true;
+		}
+	}
+
 	int64_t getReturn()
 	{
 		if (retType)
