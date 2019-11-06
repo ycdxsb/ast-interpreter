@@ -58,3 +58,6 @@ CastExpr : (Type) Expr
 ArrayExpr : DeclRefExpr [Expr]
 DerefExpr : * DeclRefExpr
 ```
+
+## score
+![image](https://github.com/ycdxsb/ast-interpreter/blob/master/score.png)
