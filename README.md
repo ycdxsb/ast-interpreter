@@ -60,4 +60,4 @@ DerefExpr : * DeclRefExpr
 ```
 
 ## score
-![image](https://github.com/ycdxsb/ast-interpreter/blob/master/score.png)
+25/25 
